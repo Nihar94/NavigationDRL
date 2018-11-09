@@ -10,9 +10,9 @@ class FeatureNet(nn.module):
 		self.env = args.env
 		self.batch_size = args.batch_size
 		# Fusion multiplier for Visual Features
-		self.alpha = Variable(torch.randn(1), requires_grad=True)
+		self.alpha = Variable(torch.randn(1), requires_grad=True)*0+1
 		# Fusion multiplier for Scent
-		self.beta = Variable(torch.randn(1), requires_grad=True)
+		self.beta = Variable(torch.randn(1), requires_grad=True)*0+1
 		self.features = nn.Sequential(
 				nn.Conv2d(1, 10, 3),
 				nn.ReLU(),
