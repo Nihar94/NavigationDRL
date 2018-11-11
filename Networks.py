@@ -14,10 +14,9 @@ class FeatureNet(nn.Module):
 		super(FeatureNet, self).__init__()
 		# Fusion multiplier for Visual Features
 		self.alpha = Variable(torch.randn(1), requires_grad=True)*0+1
+		
 		# Fusion multiplier for Scent
 		self.beta = Variable(torch.randn(1), requires_grad=True)*0+1
-		# Upsampling to feed into Imagenet models
-		self.upsample = nn.UpsamplingBilinear2d(size=(224,224))
 		
 		# Alexnet features with frozen weights
 		self.alexnet = models.alexnet(pretrained=True).features
@@ -46,8 +45,8 @@ class FeatureNet(nn.Module):
 		prev_moved = int(states[0]['moved'] == True)
 		curr_moved = int(states[1]['moved'] == True)
 		
-		Uprev_vision = self.upsample(prev_vision)
-		Ucurr_vision = self.upsample(curr_vision)
+		Uprev_vision = nn.functional.interpolate(prev_vision, size=(224,224)) #self.upsample(prev_vision)
+		Ucurr_vision = nn.functional.interpolate(curr_vision, size=(224,224)) #self.upsample(curr_vision)
 			
 		vision_features = torch.cat((Uprev_vision, Ucurr_vision), 0)
 		
@@ -69,4 +68,37 @@ class FeatureNet(nn.Module):
 class TongNet(nn.Module):
 	def __init__(self, args):
 		super(TongNet,self).__init__()
+		self.network = nn.Sequential(
+			nn.Linear(200, 200),
+			nn.ReLU(inplace=True),
+			nn.Linear(200, 100),
+			nn.ReLU(inplace=True),
+			nn.Linear(100, 20),
+			nn.ReLU(inplace=True),
+			nn.Linear(20, 3)
+			)
+		self.sm = nn.Softmax(dim=0)
 
+	def forward(self, features):
+		out = self.network(features)
+		out = self.sm(out)
+		return out
+
+class RewardNet(nn.Module):
+	def __init__(self, args):
+		super(RewardNet, self).__init__()
+		self.network = nn.Sequential(
+			nn.Linear(200, 200),
+			nn.ReLU(inplace=True),
+			nn.Linear(200, 100),
+			nn.ReLU(inplace=True),
+			nn.Linear(100, 20),
+			nn.ReLU(inplace=True),
+			nn.Linear(20, 3)
+			)
+		self.sm = nn.Softmax(dim=0)
+		
+	def forward(self, features):
+		out = self.network(features)
+		out = self.sm(out)
+		return out
