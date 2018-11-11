@@ -9,6 +9,11 @@ import pdb
 torch.manual_seed(10)
 np.random.seed(10)
 
+def weights_init(m):
+    classname = m.__class__.__name__
+    if(classname=='Linear'):
+	    torch.nn.init.xavier_uniform_(m.weight)
+
 class FeatureNet(nn.Module):
 	def __init__(self, args):
 		super(FeatureNet, self).__init__()
@@ -25,25 +30,26 @@ class FeatureNet(nn.Module):
 
 		# Learnable classifier1
 		self.vision_features = nn.Sequential(
-			nn.Linear(256 * 6 * 6, 300),
+			nn.Linear(256 * 6 * 6, 100),
 			nn.ReLU(inplace=True)
 			)
-
+		self.vision_features.apply(weights_init)
 		# Learnable classifier2
 		self.combined_features = nn.Sequential(
-			nn.Linear(608, 200)
+			nn.Linear(208, 50)
 			)
-
+		self.combined_features.apply(weights_init)
+		
 	def forward(self, states):
 
-		prev_scent = torch.from_numpy(states[0]['scent'])
-		curr_scent = torch.from_numpy(states[1]['scent'])
+		prev_scent = torch.from_numpy(states[0]['scent'])*255
+		curr_scent = torch.from_numpy(states[1]['scent'])*255
 		
 		prev_vision = torch.from_numpy(states[0]['vision']).permute(2,0,1).unsqueeze(0)
 		curr_vision = torch.from_numpy(states[1]['vision']).permute(2,0,1).unsqueeze(0)
-		
-		prev_moved = int(states[0]['moved'] == True)
-		curr_moved = int(states[1]['moved'] == True)
+		# pdb.set_trace()
+		prev_moved = int(states[0]['moved'] == True)*255
+		curr_moved = int(states[1]['moved'] == True)*255
 		
 		Uprev_vision = nn.functional.interpolate(prev_vision, size=(224,224)) #self.upsample(prev_vision)
 		Ucurr_vision = nn.functional.interpolate(curr_vision, size=(224,224)) #self.upsample(curr_vision)
@@ -69,16 +75,15 @@ class TongNet(nn.Module):
 	def __init__(self, args):
 		super(TongNet,self).__init__()
 		self.network = nn.Sequential(
-			nn.Linear(200, 200),
+			nn.Linear(50, 25),
 			nn.ReLU(inplace=True),
-			nn.Linear(200, 100),
+			nn.Linear(25, 15),
 			nn.ReLU(inplace=True),
-			nn.Linear(100, 20),
-			nn.ReLU(inplace=True),
-			nn.Linear(20, 3)
+			nn.Linear(15, 3)
 			)
+		self.network.apply(weights_init)
 		self.sm = nn.Softmax(dim=0)
-
+		
 	def forward(self, features):
 		out = self.network(features)
 		out = self.sm(out)
@@ -90,15 +95,14 @@ class Critic(nn.Module):
 	def __init__(self):
 		super(Critic, self).__init__()
 		self.network = nn.Sequential(
-			nn.Linear(200, 200),
+			nn.Linear(50, 25),
 			nn.ReLU(inplace=True),
-			nn.Linear(200, 100),
+			nn.Linear(25, 15),
 			nn.ReLU(inplace=True),
-			nn.Linear(100, 20),
-			nn.ReLU(inplace=True),
-			nn.Linear(20, 3)
+			nn.Linear(15, 3)
 			)
-		
+		self.network.apply(weights_init)
+
 	def forward(self, features):
 		out = self.network(features)
 		return out
@@ -109,15 +113,14 @@ class Actor(nn.Module):
 	def __init__(self):
 		super(Actor, self).__init__()
 		self.network = nn.Sequential(
-			nn.Linear(200, 200),
+			nn.Linear(50, 25),
 			nn.ReLU(inplace=True),
-			nn.Linear(200, 100),
+			nn.Linear(25, 15),
 			nn.ReLU(inplace=True),
-			nn.Linear(100, 20),
-			nn.ReLU(inplace=True),
-			nn.Linear(20, 3)
+			nn.Linear(15, 3)
 			)
-		
+		self.network.apply(weights_init)
+
 	def forward(self, features):
 		out = self.network(features)
 		return out
