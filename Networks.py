@@ -1,32 +1,72 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torchvision.models as models
 import numpy as np
 import gym
+import pdb
 
-class FeatureNet(nn.module):
+torch.manual_seed(10)
+np.random.seed(10)
+
+class FeatureNet(nn.Module):
 	def __init__(self, args):
-		super(Main, self).__init__()
-		self.env = args.env
-		self.batch_size = args.batch_size
+		super(FeatureNet, self).__init__()
 		# Fusion multiplier for Visual Features
 		self.alpha = Variable(torch.randn(1), requires_grad=True)*0+1
 		# Fusion multiplier for Scent
 		self.beta = Variable(torch.randn(1), requires_grad=True)*0+1
-		self.features = nn.Sequential(
-				nn.Conv2d(1, 10, 3),
-				nn.ReLU(),
-				nn.Conv2d(10, 25, 3),
-				nn.ReLU(),
-				nn.Conv2d(25, 20, 1),
-				nn.ReLU(),
+		# Upsampling to feed into Imagenet models
+		self.upsample = nn.UpsamplingBilinear2d(size=(224,224))
+		
+		# Alexnet features with frozen weights
+		self.alexnet = models.alexnet(pretrained=True).features
+		for param in self.alexnet.parameters():
+			param.requires_grad = False
+
+		# Learnable classifier1
+		self.vision_features = nn.Sequential(
+			nn.Linear(256 * 6 * 6, 300),
+			nn.ReLU(inplace=True)
+			)
+
+		# Learnable classifier2
+		self.combined_features = nn.Sequential(
+			nn.Linear(608, 200)
 			)
 
 	def forward(self, states):
-		(prev_vision, prev_scent, prev_moved), (vision, scent, moved) = states
-		vision_features = self.alpha * self.features(vision)
+
+		prev_scent = torch.from_numpy(states[0]['scent'])
+		curr_scent = torch.from_numpy(states[1]['scent'])
+		
+		prev_vision = torch.from_numpy(states[0]['vision']).permute(2,0,1).unsqueeze(0)
+		curr_vision = torch.from_numpy(states[1]['vision']).permute(2,0,1).unsqueeze(0)
+		
+		prev_moved = int(states[0]['moved'] == True)
+		curr_moved = int(states[1]['moved'] == True)
+		
+		Uprev_vision = self.upsample(prev_vision)
+		Ucurr_vision = self.upsample(curr_vision)
+			
+		vision_features = torch.cat((Uprev_vision, Ucurr_vision), 0)
+		
+		vision_features = self.alexnet(vision_features)
+		vision_features = vision_features.view(vision_features.size(0), 256*6*6)
+		vision_features = self.alpha * self.vision_features(vision_features).view(-1)
+		
+		scent = torch.cat((prev_scent, curr_scent), 0)
 		scent = self.beta * scent
-		combined_features = torch.cat((vision_features, scent), 0)
+
+		movement = torch.tensor([prev_moved, curr_moved]).float()
+		movement.requires_grad=True
+		
+		combined_features = torch.cat((vision_features, scent, movement), 0)
+		combined_features = self.combined_features(combined_features)
+
 		return combined_features
 
-class 
+class TongNet(nn.Module):
+	def __init__(self, args):
+		super(TongNet,self).__init__()
+

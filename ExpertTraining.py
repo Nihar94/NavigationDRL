@@ -4,6 +4,7 @@ import pdb
 from getch import getch, pause 
 import numpy as np
 import pickle
+import pdb
 
 env = gym.make('NEL-render-v0')
 
