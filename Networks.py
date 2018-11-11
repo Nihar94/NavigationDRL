@@ -84,9 +84,11 @@ class TongNet(nn.Module):
 		out = self.sm(out)
 		return out
 
-class RewardNet(nn.Module):
-	def __init__(self, args):
-		super(RewardNet, self).__init__()
+# Value Model
+
+class Critic(nn.Module):
+	def __init__(self):
+		super(Critic, self).__init__()
 		self.network = nn.Sequential(
 			nn.Linear(200, 200),
 			nn.ReLU(inplace=True),
@@ -96,9 +98,26 @@ class RewardNet(nn.Module):
 			nn.ReLU(inplace=True),
 			nn.Linear(20, 3)
 			)
-		self.sm = nn.Softmax(dim=0)
 		
 	def forward(self, features):
 		out = self.network(features)
-		out = self.sm(out)
+		return out
+
+# Policy Model
+
+class Actor(nn.Module):
+	def __init__(self):
+		super(Actor, self).__init__()
+		self.network = nn.Sequential(
+			nn.Linear(200, 200),
+			nn.ReLU(inplace=True),
+			nn.Linear(200, 100),
+			nn.ReLU(inplace=True),
+			nn.Linear(100, 20),
+			nn.ReLU(inplace=True),
+			nn.Linear(20, 3)
+			)
+		
+	def forward(self, features):
+		out = self.network(features)
 		return out

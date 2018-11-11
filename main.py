@@ -12,6 +12,39 @@ from Networks import *
 torch.manual_seed(10)
 np.random.seed(10)
 
+'''
+def trainRewardNet(args):
+	env = gym.make(args.env)
+	featureNet = FeatureNet(args)
+	actor = Actor()
+	critic = Critic()
+	prev_state = env.reset()
+	curr_state = copy.deepcopy(prev_state)
+	curr_expert_state = copy.deepcopy(prev_state)
+	prev_expert_state = copy.deepcopy(prev_state)
+	actor_optimizer = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
+'''
+
+def play(args):
+	env = gym.make('NEL-render-v0')
+	featureNet = FeatureNet(args)
+	featureNet.load_state_dict(torch.load(args.model_path+'featureNet'))
+	tongNet = TongNet(args)
+	tongNet.load_state_dict(torch.load(args.model_path+'tongNet'))
+	prev_state = env.reset()
+	curr_state = copy.deepcopy(prev_state)
+	avg_reward = 0
+	for t in range(1000):
+		env.render()
+		features = featureNet((prev_state, curr_state))
+		prev_state = curr_state
+		actions = tongNet(features)
+		print(actions)
+		action = torch.argmax(actions)
+		curr_state, reward, _, info = env.step(action)
+		avg_reward += reward
+		print(avg_reward/(t+1))
+
 def trainTongNet(args):
 	env = gym.make(args.env)
 	with open('ExpertTrajectories.data', 'rb') as filehandle:
@@ -47,10 +80,11 @@ def parse_arguments():
 	parser = argparse.ArgumentParser(description='Maze Navigator Argument Parser')
 	parser.add_argument('--env',dest='env',type=str, default='NEL-v0')
 	parser.add_argument('--render',dest='render',type=bool,default=False)
-	parser.add_argument('--train',dest='train',type=int,default=1)
+	parser.add_argument('--train',dest='train',type=int)
+	parser.add_argument('--test',dest='test',type=int)
 	parser.add_argument('--lr',dest='lr',type=float,default=1e-4)
 	parser.add_argument('--model_path',dest='model_path',type=str, default='/home/nihar/Desktop/DeepRL/Project/models/')
-	parser.add_argument('--batch_size',dest='batch_size',type=int, default = 32)
+	parser.add_argument('--N',dest='N',type=int, default = 1000)
 	parser.add_argument('--search_size',dest='search_size',type=int, default = 100)
 	parser.add_argument('--network_type',dest='network_type',type=str, default="double")
 	return parser.parse_args()
@@ -58,7 +92,10 @@ def parse_arguments():
 def main(args):
 	args = parse_arguments()
 	environment_name = args.env
-	trainTongNet(args)
-
+	if(args.test==1):
+		play(args)
+	if(args.train==1):
+		trainTongNet(args)
+	
 if __name__ == '__main__':
 	main(sys.argv)
