@@ -21,7 +21,7 @@ class QNetwork(nn.Module):
 	def __init__(self, args):
 		super(QNetwork,self).__init__()
 		self.network = nn.Sequential(
-			nn.Linear(51, 25),
+			nn.Linear(11, 25),
 			nn.ReLU(inplace=True),
 			nn.Linear(25, 15),
 			nn.ReLU(inplace=True),
@@ -133,8 +133,8 @@ class DQN_Agent():
 		stats = list(zip(prev_states, states))
 		feats = [self.feature_net(stats[i]).unsqueeze(0) for i in range(len(stats))]
 		feats = torch.cat(feats, 0)
-		print('FEATS')
-		print(feats.shape)
+		#print('FEATS')
+		#print(feats.shape)
 		# print(len(states))
 		# print('VISION SHAPE')
 		# print(len(prev_states))
@@ -144,13 +144,13 @@ class DQN_Agent():
 		# scents = np.vstack([np.expand_dims(state[0]['scent'], axis=0) for state in states])
 		# moveds = np.vstack([np.expand_dims(state[0]['scent'], axis=0) for state in states])
 		actions = np.vstack([batch[i][2] for i in range(len(batch))])
-		print(actions.shape)
+		#print(actions.shape)
 		rewards = np.vstack([batch[i][3] for i in range(len(batch))])
 		# print('LAST VISIONS')
 		# print(prev_visions.shape)
 		# print(visions.shape)
-		print(torch.cat((feats, torch.from_numpy(actions).float()), 1).shape)
-		print(self.network.forward(torch.cat((feats, torch.from_numpy(actions).float()), 1).cuda()).shape)
+		#print(torch.cat((feats, torch.from_numpy(actions).float()), 1).shape)
+		#print(self.network.forward(torch.cat((feats, torch.from_numpy(actions).float()), 1).cuda()).shape)
 		predictions = self.network.forward(torch.cat((feats, torch.from_numpy(actions).float()), 1).cuda()).gather(1, torch.from_numpy(actions).long().cuda())
 		#if self.args.network_type == 'double' or 'two_step':
 		values, actions_max = self.network.forward(torch.cat((feats, torch.from_numpy(actions).float()), 1).cuda()).detach().max(1)
@@ -173,7 +173,7 @@ class DQN_Agent():
 		self.state = self.env.reset()
 		self.state_t_1 = self.state
 		action = np.random.randint(self.env.action_space.n)
-		print(type(action))
+		#print(type(action))
 		for i in range(self.episodes):
 			features = self.feature_net((self.state_t_1, self.state))
 			# print(features.shape)
@@ -195,8 +195,6 @@ class DQN_Agent():
 			self.memory.append((self.state_t_1, self.state, action, reward))
 			self.state_t_1 = self.state
 			self.state = next_state
-			print('average reward')
-			print(np.mean(rewards[-100:]))
 			if i%100 == 0:
 				train_steps+=1
 				batch = self.memory.sample_batch(batch_size)
@@ -205,7 +203,7 @@ class DQN_Agent():
 				# print(ys.shape)
 				loss = self.loss(logits, ys)
 				losses.append(loss.cpu().data.numpy())
-				print(loss)
+				#print(loss)
 				self.optimizer.zero_grad()
 				loss.backward()
 				self.optimizer.step()
@@ -216,8 +214,10 @@ class DQN_Agent():
 				# avg_reward_two_step.append(av_rew_two_step)
 				# avg_reward.append(av_rew)
 				# print(self.env_name+" Episode #: "+str(i)+", Average Reward: "+str(av_rew)+", Average Loss: "+str(np.mean(losses)))
-		torch.save(self.feature_net.state_dict(), args.model_path+'featureNet')
-		torch.save(self.network.state_dict(), args.model_path+'network')
+				print('average reward')
+				print(np.mean(rewards[-100:]))	
+		torch.save(self.feature_net.state_dict(), self.args.model_path+'featureNet')
+		torch.save(self.network.state_dict(), self.args.model_path+'network')
 		# np.save("./Save_files/"+self.env_name+" Average Reward Two Step - "+self.args.network_type, avg_reward_two_step)
 		self.env.close()
 
