@@ -24,51 +24,65 @@ class FeatureNet(nn.Module):
 		self.beta = Variable(torch.randn(1), requires_grad=True)*0+1
 		
 		# Alexnet features with frozen weights
-		self.alexnet = models.alexnet(pretrained=True).features
-		for param in self.alexnet.parameters():
-			param.requires_grad = False
+		#self.alexnet = models.alexnet(pretrained=True).features
+		#for param in self.alexnet.parameters():
+		#	param.requires_grad = False
 
+		self.cnns = nn.Sequential(
+			nn.Conv2d(3, 5, 3, padding=1),
+			nn.LeakyReLU(inplace=True),
+			nn.MaxPool2d(3,stride=2),
+			nn.Conv2d(5,3,3,padding=1),
+			nn.LeakyReLU(inplace=True),
+			nn.MaxPool2d(3,stride=2)
+			)
 		# Learnable classifier1
 		self.vision_features = nn.Sequential(
-			nn.Linear(256 * 6 * 6, 100),
-			nn.ReLU(inplace=True)
+			nn.Linear(3*2*2, 20),
+			nn.LeakyReLU(inplace=True),
+			nn.Linear(20, 10),
+			nn.LeakyReLU(inplace=True)
 			)
 		self.vision_features.apply(weights_init)
 		# Learnable classifier2
 		self.combined_features = nn.Sequential(
-			nn.Linear(208, 50)
+			nn.Linear(28, 28),
+			nn.LeakyReLU(inplace=True),
+			nn.Linear(28, 10),
+			nn.LeakyReLU(inplace=True)
 			)
 		self.combined_features.apply(weights_init)
 		
 	def forward(self, states):
 
-		prev_scent = torch.from_numpy(states[0]['scent'])*255
-		curr_scent = torch.from_numpy(states[1]['scent'])*255
+		prev_scent = torch.from_numpy(states[0]['scent'])
+		curr_scent = torch.from_numpy(states[1]['scent'])
 		
 		prev_vision = torch.from_numpy(states[0]['vision']).permute(2,0,1).unsqueeze(0)
 		curr_vision = torch.from_numpy(states[1]['vision']).permute(2,0,1).unsqueeze(0)
 		# pdb.set_trace()
-		prev_moved = int(states[0]['moved'] == True)*255
-		curr_moved = int(states[1]['moved'] == True)*255
+		prev_moved = int(states[0]['moved'] == True)*10
+		curr_moved = int(states[1]['moved'] == True)*10
 		
-		Uprev_vision = nn.functional.interpolate(prev_vision, size=(224,224)) #self.upsample(prev_vision)
-		Ucurr_vision = nn.functional.interpolate(curr_vision, size=(224,224)) #self.upsample(curr_vision)
-			
-		vision_features = torch.cat((Uprev_vision, Ucurr_vision), 0)
+		# Uprev_vision = nn.functional.interpolate(prev_vision, size=(224,224)) #self.upsample(prev_vision)
+		# Ucurr_vision = nn.functional.interpolate(curr_vision, size=(224,224)) #self.upsample(curr_vision)
 		
-		vision_features = self.alexnet(vision_features)
-		vision_features = vision_features.view(vision_features.size(0), 256*6*6)
+		vision_features = torch.cat((prev_vision, curr_vision), 0)
+		
+		vision_features = self.cnns(vision_features)
+		#vision_features = self.alexnet(vision_features)
+		vision_features = vision_features.view(vision_features.size(0), 3*2*2)
+		
 		vision_features = self.alpha * self.vision_features(vision_features).view(-1)
 		
 		scent = torch.cat((prev_scent, curr_scent), 0)
 		scent = self.beta * scent
-
 		movement = torch.tensor([prev_moved, curr_moved]).float()
 		movement.requires_grad=True
 		
 		combined_features = torch.cat((vision_features, scent, movement), 0)
 		combined_features = self.combined_features(combined_features)
-
+		
 		return combined_features
 
 class TongNet(nn.Module):
